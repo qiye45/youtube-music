@@ -16,19 +16,44 @@ console.log(`Upstream Auth: ${upstreamAuth ? 'Present' : 'None'}`);
 // 代理服务器，用于转发到上游代理
 const proxy_for_upstream = httpProxy.createProxyServer({
     target: upstreamTarget,
-    changeOrigin: true, // 通常需要，让上游代理正确处理 Host
-    secure: false // 上游代理是 http
+    // changeOrigin: true, // 之前可能是 true 或未设置
+    changeOrigin: false, // 确保 Host 头部是原始请求的 Host (e.g., example.com)
+    secure: false,       // 上游代理是 http
+    toProxy: true        // <--- 添加这个关键选项！告诉 http-proxy 目标本身是个代理
 });
 
-// 监听发送到上游代理的请求事件
+// 监听发送到上游代理的请求事件 (可以保持不变或简化)
 proxy_for_upstream.on('proxyReq', (proxyReq, req, res, options) => {
-    console.log(`[Forwarding] Sending request for ${req.url} to upstream ${upstreamTarget}`);
-    // 确保路径是完整的 URL (http-proxy 通常会处理，但确认下)
-    // proxyReq.path = req.url;
+    console.log(`[Forwarding] Attempting to send: ${req.method} ${req.url} HTTP/${req.httpVersion} to upstream ${upstreamTarget} (using toProxy=true)`);
+    // With toProxy: true, http-proxy should handle the absolute URI and Host header correctly.
+    // Let's remove manual Host setting unless needed:
+    // const targetUrl = new URL(req.url);
+    // proxyReq.setHeader('Host', targetUrl.host);
+    // console.log(`[Forwarding] Host header should be: ${targetUrl.host}`);
+
     if (upstreamAuth) {
         proxyReq.setHeader('Proxy-Authorization', `Basic ${upstreamAuth}`);
         console.log('[Forwarding] Added Proxy-Authorization header.');
     }
+
+    // Log all headers being sent TO the upstream proxy *after* potential modifications
+    // Use setTimeout to ensure headers are finalized before logging (might not be strictly necessary but safer)
+    setTimeout(() => {
+        console.log('[Forwarding] Actual Headers Sent to Upstream:');
+        const headers = proxyReq.getHeaders ? proxyReq.getHeaders() : proxyReq._headers; // Compatibility
+        if (headers) {
+            Object.keys(headers).forEach(key => {
+                // Avoid logging potentially sensitive auth details repeatedly if not needed
+                if (key.toLowerCase() === 'proxy-authorization' && upstreamAuth) {
+                     console.log(`  ${key}: Basic [REDACTED]`);
+                } else {
+                     console.log(`  ${key}: ${headers[key]}`);
+                }
+            });
+        } else {
+            console.log('  (Could not retrieve headers to log)');
+        }
+    }, 0); // Execute soon after current event loop tick
 });
 
 // 监听从上游代理收到的响应事件 <--- 添加这个
