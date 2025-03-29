@@ -13,77 +13,40 @@ const upstreamTarget = `http://${upstreamUrl.hostname}:${upstreamUrl.port}`;
 console.log(`Upstream Target: ${upstreamTarget}`);
 console.log(`Upstream Auth: ${upstreamAuth ? 'Present' : 'None'}`);
 
-// 代理服务器，用于转发到上游代理
-const proxy_for_upstream = httpProxy.createProxyServer({
-  target: upstreamTarget,
-  changeOrigin: true, // 之前可能是 true 或未设置
-  // changeOrigin: false, // 确保 Host 头部是原始请求的 Host (e.g., example.com)
-  secure: false,       // 上游代理是 http
-  toProxy: true         // <--- 添加这个关键选项！告诉 http-proxy 目标本身是个代理
-});
-
-// 监听发送到上游代理的请求事件 (可以保持不变或简化)
-proxy_for_upstream.on('proxyReq', (proxyReq, req, res, options) => {
-  console.log(`[Forwarding] Attempting to send: ${req.method} ${req.url} HTTP/${req.httpVersion} to upstream ${upstreamTarget}`);
-  // 使用 toProxy: true 时，http-proxy 应能正确处理绝对 URI 和 Host 头信息。
-  // 除非有必要，否则让我们移除手动 Host 设置：
-  const targetUrl = new URL(req.url);
-  proxyReq.setHeader('Host', targetUrl.host);
-  console.log(`[Forwarding] Host header should be: ${targetUrl.host}`);
-
-  if (upstreamAuth) {
-    proxyReq.setHeader('Proxy-Authorization', `Basic ${upstreamAuth}`);
-    console.log('[Forwarding] Added Proxy-Authorization header.');
-  }
-});
-
-// 监听从上游代理收到的响应事件 <--- 添加这个
-proxy_for_upstream.on('proxyRes', (proxyRes, req, res) => {
-  console.log(`[Upstream Response] Status: ${proxyRes.statusCode}`);
-  console.log(`[Upstream Response] Headers: ${JSON.stringify(proxyRes.headers, null, 2)}`);
-  // 注意：此时 http-proxy 会自动将响应流回客户端 (res)
-  // 如果需要修改响应，可以在这里操作，但通常不需要
-});
-
-// 增强错误处理
-proxy_for_upstream.on('error', (err, req, res) => {
-  console.error('[Upstream Proxy Error]', `Error: ${err.message}`, `Code: ${err.code || 'N/A'}`);
-  // 确保在发送响应之前检查 headersSent
-  if (res && !res.headersSent) {
-    res.writeHead(502, { 'Content-Type': 'text/plain' });
-    res.end(`Proxy Error: Could not connect or communicate with upstream proxy.\n${err.message}`);
-  } else if (res) {
-    // 如果头已发送，可能只能尝试关闭连接
-    console.error('[Upstream Proxy Error] Headers already sent, cannot send error response.');
-    res.end();
-  } else {
-    console.error('[Upstream Proxy Error] Response object is not available.');
-  }
-});
-
 // 本地 HTTP 服务器
 const server_revised = http.createServer((req, res) => {
   console.log(`[Request In] Received HTTP request for: ${req.url}`);
-  // 所有非 CONNECT 请求都通过上游代理转发
-  const targetUrl = new URL(req.url);
-  if (targetUrl.protocol === 'http:') {
-    // 直接请求目标服务器
-    const directReq = http.request(req.url, {
-      method: req.method,
-      headers: req.headers,
-    }, (directRes) => {
-      res.writeHead(directRes.statusCode, directRes.headers);
-      directRes.pipe(res);
-    });
-    directReq.on('error', (err) => {
-      res.writeHead(502, { 'Content-Type': 'text/plain' });
-      res.end(`Direct Request Error: ${err.message}`);
-    });
-    req.pipe(directReq);
-  } else {
-    // 通过上游代理转发（主要是 HTTPS）
-    proxy_for_upstream.web(req, res);
+
+  const parsedUrl = url.parse(req.url);
+  const requestOptions = {
+    hostname: upstreamUrl.hostname,
+    port: upstreamUrl.port,
+    path: req.url, // 代理服务器会解析 path
+    method: req.method,
+    headers: {
+      ...req.headers,
+      Host: parsedUrl.host // 确保 Host 头正确
+    }
+  };
+
+  // 如果需要身份验证，则添加 `Proxy-Authorization` 头
+  if (upstreamAuth) {
+    requestOptions.headers['Proxy-Authorization'] = `Basic ${upstreamAuth}`;
   }
+
+  // 通过上游代理发送请求
+  const proxyReq = http.request(requestOptions, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error(`[HTTP Error] ${err.message}`);
+    res.writeHead(502, { 'Content-Type': 'text/plain' });
+    res.end(`Error: ${err.message}`);
+  });
+
+  req.pipe(proxyReq);
 });
 
 // 处理 CONNECT 请求 (HTTPS)
