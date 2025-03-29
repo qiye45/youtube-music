@@ -1,5 +1,4 @@
 const http = require('http');
-const httpProxy = require('http-proxy');
 const url = require('url');
 const { Buffer } = require('buffer'); // 明确引入 Buffer
 
