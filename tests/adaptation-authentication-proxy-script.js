@@ -1,5 +1,4 @@
 const http = require('http');
-const url = require('url');
 const { Buffer } = require('buffer'); // 明确引入 Buffer
 
 const LOCAL_PORT = 8080;
@@ -16,7 +15,7 @@ console.log(`Upstream Auth: ${upstreamAuth ? 'Present' : 'None'}`);
 const server_revised = http.createServer((req, res) => {
   console.log(`[Request In] Received HTTP request for: ${req.url}`);
 
-  const parsedUrl = url.parse(req.url);
+  const parsedUrl = new URL(req.url);
   const requestOptions = {
     hostname: upstreamUrl.hostname,
     port: upstreamUrl.port,
@@ -51,8 +50,6 @@ const server_revised = http.createServer((req, res) => {
 // 处理 CONNECT 请求 (HTTPS)
 server_revised.on('connect', (req, clientSocket, head) => {
   console.log(`[Request In] Received CONNECT request for: ${req.url}`);
-  const [targetHost, targetPort] = req.url.split(':');
-  const port = targetPort || 443;
 
   // 向**上游代理**发起 CONNECT 请求
   const proxyReqOptions = {
@@ -75,7 +72,7 @@ server_revised.on('connect', (req, clientSocket, head) => {
   console.log(`[CONNECT Forwarding] Sending CONNECT request to upstream ${upstreamUrl.hostname}:${upstreamUrl.port} for target ${req.url}`);
   const proxyReq = http.request(proxyReqOptions);
 
-  proxyReq.on('connect', (proxyRes, proxySocket, proxyHead) => {
+  proxyReq.on('connect', (proxyRes, proxySocket) => {
     console.log(`[CONNECT Upstream Response] Status: ${proxyRes.statusCode}`);
     if (proxyRes.statusCode === 200) {
       console.log(`[CONNECT Success] Connection established via upstream proxy to ${req.url}`);
