@@ -1,10 +1,10 @@
 const http = require('http');
 const net = require('net');
 const { Buffer } = require('buffer');
-const { SocksClient } = require('socks');  // 正确导入 SocksClient
+const { SocksClient } = require('socks');
 
 const LOCAL_PORT = 8080;
-const SOCKS_PORT = 1080;  // SOCKS代理服务器端口
+const SOCKS_PORT = 8081;  // SOCKS代理服务器端口
 const UPSTREAM_PROXY = 'http://test:test@172.16.229.142:7890';
 const UPSTREAM_SOCKS = 'socks5://test:test@172.16.229.142:7891';  // 支持认证的上游SOCKS代理
 

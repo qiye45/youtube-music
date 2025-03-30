@@ -235,7 +235,7 @@
       "name": "Album Color Theme"
     },
     "ambient-mode": {
-      "description": "Applies a lighting effect by casting gentle colors from the video, into your screen’s background",
+      "description": "Applies a lighting effect by casting gentle colors from the video, into your screen's background",
       "menu": {
         "blur-amount": {
           "label": "Blur amount",
@@ -839,6 +839,38 @@
             "bass-booster": "Bass booster"
           }
         }
+      }
+    },
+    "auth-proxy": {
+      "name": "Auth Proxy",
+      "description": "Enable proxy service with authentication",
+      "menu": {
+        "proxy-settings": "Proxy Settings",
+        "proxy-type": "Proxy Type",
+        "hostname": "Hostname",
+        "prompt-hostname": "Proxy Hostname",
+        "enter-hostname": "Enter Hostname",
+        "port": "Port",
+        "prompt-port": "Proxy Port",
+        "enter-port": "Enter Port",
+        "username": "Username",
+        "prompt-username": "Proxy Username",
+        "enter-username": "Enter Username",
+        "password": "Password",
+        "prompt-password": "Proxy Password",
+        "enter-password": "Enter Password",
+        "upstream-proxy": "Upstream Proxy",
+        "enable-upstream": "Enable Upstream Proxy",
+        "disable-upstream": "Disable Upstream Proxy",
+        "set-upstream-url": "Set Upstream Proxy URL",
+        "prompt-upstream": "Upstream Proxy URL",
+        "enter-upstream": "Enter upstream proxy URL (e.g. socks5://username:password@hostname:port)",
+        "import-from-string": "Import from proxy string",
+        "prompt-import": "Import Proxy Configuration",
+        "enter-proxy-string": "Enter proxy string (e.g. socks5://username:password@hostname:port)",
+        "export-as-string": "Copy proxy string to clipboard",
+        "enable": "Enable Proxy",
+        "disable": "Disable Proxy"
       }
     }
   }
