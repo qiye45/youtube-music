@@ -163,9 +163,7 @@ if (config.get('options.proxy')) {
   }
 
   // 设置代理
-  if (proxyToUse) {
-    app.commandLine.appendSwitch('proxy-server', proxyToUse);
-  }
+  app.commandLine.appendSwitch('proxy-server', proxyToUse);
 
   // app.commandLine.appendSwitch('proxy-server', config.get('options.proxy'));
 }

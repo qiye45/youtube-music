@@ -1,45 +1,20 @@
 import net from 'net';
 
-import { app } from 'electron';
-import { SocksClient } from 'socks';
+import {app} from 'electron';
+import {SocksClient} from 'socks';
 
-import { createBackend } from '@/utils';
+import {createBackend} from '@/utils';
 import config from '@/config';
 
-import { getProxyUrl } from '../config';
+import {getProxyUrl} from '../config';
 
-import type { SocksClientOptions } from 'socks';
+import type {SocksClientOptions} from 'socks';
 
-import type { AuthProxyConfig } from '../config';
-import type { Server } from 'http';
-import type { BackendContext } from '@/types/contexts';
+import type {AuthProxyConfig} from '../config';
+import type {Server} from 'http';
+import type {BackendContext} from '@/types/contexts';
+import {BackendType} from "./types";
 
-// Parse SOCKS URL to configuration object
-interface BackendType {
-  server?: Server | net.Server;
-  oldConfig?: AuthProxyConfig;
-  startServer: (config: AuthProxyConfig) => void;
-  stopServer: () => void;
-  setSystemProxy: (config: AuthProxyConfig) => void;
-  clearSystemProxy: () => void;
-  proxyString?: string;
-  _savedProxy?: string;
-  handleSocks5: (
-    clientSocket: net.Socket,
-    chunk: Buffer,
-    upstreamProxyUrl: string | null,
-  ) => void;
-  handleSocks4: (
-    clientSocket: net.Socket,
-    chunk: Buffer,
-    upstreamProxyUrl: string | null,
-  ) => void;
-  processSocks5Request: (
-    clientSocket: net.Socket,
-    data: Buffer,
-    upstreamProxyUrl: string | null,
-  ) => void;
-}
 
 // 解析上游SOCKS代理URL（支持认证）
 const parseSocksUrl = (socksUrl: string) => {
@@ -59,24 +34,15 @@ const parseSocksUrl = (socksUrl: string) => {
 };
 
 export const backend = createBackend<BackendType, AuthProxyConfig>({
-  // Called when plugin starts
   async start(ctx: BackendContext<AuthProxyConfig>) {
     const pluginConfig = await ctx.getConfig();
-    if (pluginConfig.enabled) {
-      this.startServer(pluginConfig);
+    this.startServer(pluginConfig);
 
-      // Set system proxy
-      this.setSystemProxy(pluginConfig);
-    }
+
   },
-
-  // Called when plugin stops
   stop() {
-    this.clearSystemProxy();
     this.stopServer();
   },
-
-  // Called when plugin configuration changes
   onConfigChange(pluginConfig: AuthProxyConfig) {
     if (!this.oldConfig) {
       this.oldConfig = pluginConfig;
@@ -87,40 +53,34 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
     const configChanged =
       this.oldConfig.port !== pluginConfig.port ||
       this.oldConfig.hostname !== pluginConfig.hostname ||
-      this.oldConfig.username !== pluginConfig.username ||
-      this.oldConfig.password !== pluginConfig.password ||
       this.oldConfig.useUpstreamProxy !== pluginConfig.useUpstreamProxy ||
       this.oldConfig.upstreamProxyUrl !== pluginConfig.upstreamProxyUrl;
 
     // Enable status change
     if (this.oldConfig.enabled !== pluginConfig.enabled) {
       if (pluginConfig.enabled) {
-        this.clearSystemProxy();
         this.startServer(pluginConfig);
-        this.setSystemProxy(pluginConfig);
       } else {
-        this.clearSystemProxy();
         this.stopServer();
       }
     }
     // Configuration changed and proxy is enabled
     else if (configChanged && pluginConfig.enabled) {
-      this.clearSystemProxy();
       this.stopServer();
       this.startServer(pluginConfig);
-      this.setSystemProxy(pluginConfig);
     }
 
     this.oldConfig = pluginConfig;
   },
 
-  // Start proxy server - SOCKS only
+  // Custom
+  // Start proxy server - SOCKS
   startServer(config) {
     if (this.server) {
       this.stopServer();
     }
 
-    const { port, hostname, useUpstreamProxy, upstreamProxyUrl } = config;
+    const {port, hostname, useUpstreamProxy, upstreamProxyUrl} = config;
 
     // 创建SOCKS代理服务器
     const socksServer = net.createServer((socket) => {
@@ -275,7 +235,7 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
       // 使用 SocksClient.createConnection API
       SocksClient.createConnection(options)
         .then((info) => {
-          const { socket: proxySocket } = info;
+          const {socket: proxySocket} = info;
 
           // 连接成功，向客户端发送成功响应
           const responseBuffer = Buffer.from([
@@ -413,7 +373,7 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
       // 使用 SocksClient.createConnection API
       SocksClient.createConnection(options)
         .then((info) => {
-          const { socket: proxySocket } = info;
+          const {socket: proxySocket} = info;
 
           // 连接成功，向客户端发送成功响应
           clientSocket.write(Buffer.from([0x00, 0x5a, 0, 0, 0, 0, 0, 0]));
@@ -472,78 +432,16 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
     }
     console.log('[Proxy Service] Proxy disabled');
   },
-
-  // Set system proxy
-  setSystemProxy(pluginConfig) {
-    try {
-      if (!app) return;
-
-      let proxyString = getProxyUrl(pluginConfig);
-      this.proxyString = proxyString;
-
-      console.log(`[Proxy Service] Setting system proxy to: ${proxyString}`);
-
-      // Set proxy directly to electron app
-      proxyString = 'socks5://127.0.0.1:7891';
-      app.commandLine.appendSwitch('proxy-server', proxyString);
-
-      // Check if there's a global proxy configuration and save it
-      const globalProxyConfig = config.get('options.proxy');
-      console.log(`[Proxy Service] Global proxy setting: ${globalProxyConfig}`);
-      if (globalProxyConfig) {
-        console.log(
-          `[Proxy Service] Saved current proxy setting: ${globalProxyConfig}`,
-        );
-        this._savedProxy = globalProxyConfig;
-
-        // Print the upstream proxy information if it exists
-        if (globalProxyConfig.includes('socks')) {
-          console.log(
-            `[Proxy Service] Upstream proxy detected: ${globalProxyConfig}`,
-          );
-
-          try {
-            const upstreamUrl = new URL(globalProxyConfig);
-            console.log('[Proxy Service] Upstream proxy details:');
-            console.log(`  - Protocol: ${upstreamUrl.protocol}`);
-            console.log(`  - Host: ${upstreamUrl.hostname}`);
-            console.log(`  - Port: ${upstreamUrl.port}`);
-            if (upstreamUrl.username) {
-              console.log(`  - Authentication: ${upstreamUrl.username}:****`);
-            }
-          } catch (e) {
-            console.error(
-              '[Proxy Service] Failed to parse upstream proxy URL:',
-              e,
-            );
-          }
-        }
-      }
-    } catch (error) {
-      console.error('[Proxy Service] Failed to set system proxy:', error);
-    }
+  // 设置代理
+  set_proxy() {
+    window.ipcRenderer.send("set_proxy", {
+      http_proxy: this.setting_http_proxy
+    });
   },
 
-  // Clear system proxy
-  clearSystemProxy() {
-    try {
-      if (!app || !this.proxyString) return;
-
-      console.log('[Proxy Service] Clearing system proxy');
-      app.commandLine.removeSwitch('proxy-server');
-      this.proxyString = undefined;
-
-      // Restore previous proxy setting if exists
-      if (this._savedProxy) {
-        console.log(
-          `[Proxy Service] Restoring previous proxy setting: ${this._savedProxy}`,
-        );
-        // app.commandLine.appendSwitch('proxy-server', this._savedProxy);
-        app.commandLine.appendSwitch('proxy-server', 'socks5://127.0.0.1:7891');
-        this._savedProxy = undefined;
-      }
-    } catch (error) {
-      console.error('[Proxy Service] Failed to clear system proxy:', error);
-    }
+// 取消代理
+  remove_proxy() {
+    window.ipcRenderer.send("remove_proxy");
   },
+
 });

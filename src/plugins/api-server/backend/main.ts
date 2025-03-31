@@ -18,7 +18,7 @@ import type { RepeatMode } from '@/types/datahost-get-state';
 export const backend = createBackend<BackendType, APIServerConfig>({
   async start(ctx) {
     const config = await ctx.getConfig();
-
+    console.log('api-server main.ts config',config)
     await this.init(ctx);
     registerCallback((songInfo) => {
       this.songInfo = songInfo;

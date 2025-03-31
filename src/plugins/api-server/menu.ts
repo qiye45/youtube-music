@@ -18,6 +18,8 @@ export const onMenu = async ({
   window,
 }: MenuContext<APIServerConfig>): Promise<MenuTemplate> => {
   const config = await getConfig();
+  console.log('api-server menu.ts config',config)
+
 
   return [
     {

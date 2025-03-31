@@ -220,7 +220,6 @@ function processSocks5Request(clientSocket, data) {
 
   console.log(`[SOCKS5] Request to connect to ${targetHost}:${targetPort}`);
 
-  // 使用更新的 SocksClient API
   const options = {
     proxy: {
       host: socksProxy.host,
@@ -236,7 +235,6 @@ function processSocks5Request(clientSocket, data) {
     }
   };
 
-  // 使用新的 SocksClient.createConnection API
   SocksClient.createConnection(options)
     .then(info => {
       const { socket: proxySocket } = info;
@@ -299,7 +297,6 @@ function handleSocks4(clientSocket, chunk) {
 
   console.log(`[SOCKS4] Request to connect to ${ip}:${port}`);
 
-  // 使用更新的 SocksClient API
   const options = {
     proxy: {
       host: socksProxy.host,
@@ -315,7 +312,6 @@ function handleSocks4(clientSocket, chunk) {
     }
   };
 
-  // 使用新的 SocksClient.createConnection API
   SocksClient.createConnection(options)
     .then(info => {
       const { socket: proxySocket } = info;
