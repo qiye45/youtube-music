@@ -57,7 +57,7 @@ import { loadI18n, setLanguage, t } from '@/i18n';
 
 import ErrorHtmlAsset from '@assets/error.html?asset';
 
-import { defaultAuthProxyConfig } from '@/plugins/auth-proxy/config';
+import { defaultAuthProxyConfig } from '@/plugins/auth-proxy-adapter/config';
 
 import type { PluginConfig } from '@/types/plugins';
 
@@ -144,7 +144,7 @@ if (is.linux()) {
 
 if (config.get('options.proxy')) {
   // 检查是否启用了 Auth-Proxy 插件
-  const authProxyEnabled = config.plugins.isEnabled('auth-proxy');
+  const authProxyEnabled = config.plugins.isEnabled('auth-proxy-adapter');
   console.log('[Proxy Service] Auth-Proxy plugin enabled:', authProxyEnabled);
   const authProxyConfig = defaultAuthProxyConfig;
   console.log('[Proxy Service] Auth-Proxy plugin config:', authProxyConfig);

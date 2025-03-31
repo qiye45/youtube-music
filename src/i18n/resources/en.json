@@ -841,8 +841,8 @@
         }
       }
     },
-    "auth-proxy": {
-      "name": "Auth Proxy",
+    "auth-proxy-adapter": {
+      "name": "Auth Proxy Adapter",
       "description": "Enable proxy service with authentication",
       "menu": {
         "proxy-settings": "Proxy Settings",

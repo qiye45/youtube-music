@@ -13,14 +13,14 @@ export const onMenu = async ({
   return [
     {
       label: pluginConfig.enabled
-        ? t('plugins.auth-proxy.menu.disable')
-        : t('plugins.auth-proxy.menu.enable'),
+        ? t('plugins.auth-proxy-adapter.menu.disable')
+        : t('plugins.auth-proxy-adapter.menu.enable'),
       type: 'normal',
       click: () => {
         if (pluginConfig.enabled) {
-          config.plugins.disable('auth-proxy');
+          config.plugins.disable('auth-proxy-adapter');
         } else {
-          config.plugins.enable('auth-proxy');
+          config.plugins.enable('auth-proxy-adapter');
         }
       },
     },

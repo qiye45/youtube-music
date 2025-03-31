@@ -2,7 +2,6 @@ export interface AuthProxyConfig {
   enabled: boolean;
   hostname: string;
   port: number;
-  useUpstreamProxy: boolean;
   upstreamProxyUrl: string;
 }
 
@@ -10,7 +9,6 @@ export const defaultAuthProxyConfig: AuthProxyConfig = {
   enabled: true,
   hostname: '127.0.0.1',
   port: 4545,
-  useUpstreamProxy: false,
   upstreamProxyUrl: '',
 };
 

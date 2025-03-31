@@ -53,7 +53,6 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
     const configChanged =
       this.oldConfig.port !== pluginConfig.port ||
       this.oldConfig.hostname !== pluginConfig.hostname ||
-      this.oldConfig.useUpstreamProxy !== pluginConfig.useUpstreamProxy ||
       this.oldConfig.upstreamProxyUrl !== pluginConfig.upstreamProxyUrl;
 
     // Enable status change
@@ -80,7 +79,7 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
       this.stopServer();
     }
 
-    const {port, hostname, useUpstreamProxy, upstreamProxyUrl} = config;
+    const {port, hostname, upstreamProxyUrl} = config;
 
     // 创建SOCKS代理服务器
     const socksServer = net.createServer((socket) => {
@@ -93,16 +92,14 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
           console.log('[SOCKS] SOCKS5 handshake received');
           this.handleSocks5(
             socket,
-            chunk,
-            useUpstreamProxy ? upstreamProxyUrl : null,
+            chunk
           );
         } else if (chunk[0] === 0x04) {
           // SOCKS4
           console.log('[SOCKS] SOCKS4 request received');
           this.handleSocks4(
             socket,
-            chunk,
-            useUpstreamProxy ? upstreamProxyUrl : null,
+            chunk
           );
         } else {
           console.log('[SOCKS] Unknown protocol:', chunk[0]);
@@ -125,11 +122,9 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
       console.log('===========================================');
       console.log(`[Proxy Service] SOCKS proxy enabled at ${hostname}:${port}`);
       console.log('[Proxy Service] Authentication disabled');
-      if (useUpstreamProxy && upstreamProxyUrl) {
-        console.log(
-          `[Proxy Service] Using upstream proxy: ${upstreamProxyUrl}`,
-        );
-      }
+      console.log(
+        `[Proxy Service] Using upstream proxy: ${upstreamProxyUrl}`,
+      );
       console.log('===========================================');
     });
 
