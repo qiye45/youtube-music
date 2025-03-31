@@ -57,6 +57,8 @@ import { loadI18n, setLanguage, t } from '@/i18n';
 
 import ErrorHtmlAsset from '@assets/error.html?asset';
 
+import { defaultAuthProxyConfig } from '@/plugins/auth-proxy/config';
+
 import type { PluginConfig } from '@/types/plugins';
 
 if (!is.macOS()) {
@@ -141,7 +143,31 @@ if (is.linux()) {
 }
 
 if (config.get('options.proxy')) {
-  app.commandLine.appendSwitch('proxy-server', config.get('options.proxy'));
+  // 检查是否启用了 Auth-Proxy 插件
+  const authProxyEnabled = config.plugins.isEnabled('auth-proxy');
+  console.log('[Proxy Service] Auth-Proxy plugin enabled:', authProxyEnabled);
+  const authProxyConfig = defaultAuthProxyConfig;
+  console.log('[Proxy Service] Auth-Proxy plugin config:', authProxyConfig);
+  // 确定要使用的代理
+  let proxyToUse = '';
+
+  if (authProxyEnabled && authProxyConfig) {
+    // 使用 Auth-Proxy 插件的代理
+    const { hostname, port } = authProxyConfig;
+    proxyToUse = `socks5://${hostname}:${port}`;
+    console.log('[Proxy Service] Using Auth-Proxy plugin proxy:', proxyToUse);
+  } else if (config.get('options.proxy')) {
+    // 使用全局代理设置
+    proxyToUse = config.get('options.proxy');
+    console.log('[Proxy Service] Using global proxy server:', proxyToUse);
+  }
+
+  // 设置代理
+  if (proxyToUse) {
+    app.commandLine.appendSwitch('proxy-server', proxyToUse);
+  }
+
+  // app.commandLine.appendSwitch('proxy-server', config.get('options.proxy'));
 }
 
 // Adds debug features like hotkeys for triggering dev tools and reload

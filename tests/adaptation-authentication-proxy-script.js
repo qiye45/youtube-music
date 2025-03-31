@@ -346,7 +346,7 @@ function handleSocks4(clientSocket, chunk) {
 }
 
 socksServer.listen(SOCKS_PORT, '127.0.0.1', () => {
-  console.log(`SOCKS proxy server listening on socks://127.0.0.1:${SOCKS_PORT}`);
+  console.log(`SOCKS proxy server listening on socks5://127.0.0.1:${SOCKS_PORT}`);
   console.log(`Forwarding SOCKS traffic through: ${UPSTREAM_SOCKS}`);
 });
 

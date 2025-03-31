@@ -4,12 +4,12 @@
       "plugins": {
         "execute-failed": "执行插件 {{pluginName}}::{{contextName}} 失败",
         "executed-at-ms": "插件 {{pluginName}}::{{contextName}} 已在 {{ms}} 毫秒内执行",
-        "initialize-failed": "初始化插件 "{{pluginName}}" 失败",
+        "initialize-failed": "初始化插件 “{{pluginName}}” 失败",
         "load-all": "正在加载所有插件",
-        "load-failed": "加载插件 "{{pluginName}}" 失败",
-        "loaded": "插件 "{{pluginName}}" 已载入",
-        "unload-failed": "卸载插件 "{{pluginName}}" 失败",
-        "unloaded": "插件 "{{pluginName}}" 已卸载"
+        "load-failed": "加载插件 “{{pluginName}}” 失败",
+        "loaded": "插件 “{{pluginName}}” 已载入",
+        "unload-failed": "卸载插件 “{{pluginName}}” 失败",
+        "unloaded": "插件 “{{pluginName}}” 已卸载"
       }
     }
   },
@@ -27,10 +27,10 @@
         "loaded": "i18n 已载入"
       },
       "second-instance": {
-        "receive-command": "已从协议接收到以下指令：""{{command}}""
+        "receive-command": "已从协议接收到以下指令：“{{command}}”"
       },
       "theme": {
-        "css-file-not-found": "CSS 文件 ""{{cssFile}}"" 不存在，将被忽略"
+        "css-file-not-found": "CSS 文件 “{{cssFile}}” 不存在，将被忽略"
       },
       "unresponsive": {
         "details": "无响应错误！\n{{error}}"
@@ -53,8 +53,8 @@
           "later": "稍后",
           "restart-now": "现在重启"
         },
-        "detail": ""{{pluginName}}"" 插件需要重启程序后生效",
-        "message": ""{{pluginName}}"" 需要重启",
+        "detail": "“{{pluginName}}” 插件需要重启程序后生效",
+        "message": "“{{pluginName}}” 需要重启",
         "title": "需要重启"
       },
       "unresponsive": {
@@ -215,7 +215,7 @@
       "name": "广告屏蔽器"
     },
     "album-actions": {
-      "description": "添加作用于播放列表或专辑中所有歌曲的全局"点赞/取消点赞""与"喜欢/取消喜欢"按钮",
+      "description": "添加作用于播放列表或专辑中所有歌曲的全局“点赞/取消点赞”与“喜欢/取消喜欢”按钮",
       "name": "专辑操作"
     },
     "album-color-theme": {
@@ -381,7 +381,7 @@
       }
     },
     "disable-autoplay": {
-      "description": "让曲目开始时处于 "暂停" 模式",
+      "description": "让曲目开始时处于 “暂停” 模式",
       "menu": {
         "apply-once": "仅在程序启动时应用"
       },
@@ -440,15 +440,15 @@
           "download-progress": "下载： {{percent}}%",
           "downloading": "下载中…",
           "downloading-counter": "当前正下载 {{current}}/{{total}}…",
-          "downloading-playlist": "当前正在下载播放列表 ""{{playlistTitle}}"" - 共有 {{playlistSize}} 首歌曲 ({{playlistId}})",
-          "error-while-downloading": "下载 ""{{author}} - {{title}}"" 时出错： {{error}}",
+          "downloading-playlist": "当前正在下载播放列表 \"{{playlistTitle}}\" - 共有 {{playlistSize}} 首歌曲 ({{playlistId}})",
+          "error-while-downloading": "下载 \"{{author}} - {{title}}\" 时出错： {{error}}",
           "folder-already-exists": "文件夹 {{playlistFolder}} 已存在",
           "getting-playlist-info": "正在获取播放列表信息…",
           "loading": "加载中…",
           "playlist-has-only-one-song": "播放列表只有一首歌曲，将直接下载",
           "playlist-id-not-found": "未找到播放列表 ID",
           "playlist-is-empty": "播放列表是空的",
-          "playlist-is-mix-or-private": "获取播放列表信息时出错：请确认目标不是私有或"为你推荐"列表\n\n{{error}}",
+          "playlist-is-mix-or-private": "获取播放列表信息时出错：请确认目标不是私有或“为你推荐”列表\n\n{{error}}",
           "preparing-file": "正在准备文件…",
           "saving": "正在保存…",
           "trying-to-get-playlist-id": "正尝试获取播放列表 ID： {{playlistId}}",
@@ -563,7 +563,7 @@
         "id-copy-failed": "复制发起者 ID 到剪贴板时失败",
         "join-failed": "加入一起听失败",
         "joined": "已加入一起听",
-        "permission-changed": "一起听权限已改为 ""{{permission}}""",
+        "permission-changed": "一起听权限已改为 \"{{permission}}\"",
         "remove-song-failed": "移除歌曲失败",
         "user-connected": "{{name}} 加入了一起听",
         "user-disconnected": "{{name}} 离开了一起听"
