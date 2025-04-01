@@ -13,16 +13,16 @@ export type BackendType = {
   handleSocks5: (
     clientSocket: net.Socket,
     chunk: Buffer,
-    upstreamProxyUrl: string | null,
+    upstreamProxyUrl: string,
   ) => void;
   handleSocks4: (
     clientSocket: net.Socket,
     chunk: Buffer,
-    upstreamProxyUrl: string | null,
+    upstreamProxyUrl: string,
   ) => void;
   processSocks5Request: (
     clientSocket: net.Socket,
     data: Buffer,
-    upstreamProxyUrl: string | null,
+    upstreamProxyUrl: string,
   ) => void;
 };

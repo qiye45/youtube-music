@@ -12,16 +12,17 @@ import { BackendType } from './types';
 
 import config from '@/config';
 
-import type { AuthProxyConfig } from '../config';
+import { AuthProxyConfig, defaultAuthProxyConfig } from '../config';
+
 import type { BackendContext } from '@/types/contexts';
 
-// 解析上游SOCKS代理URL（支持认证）
+// 解析上游SOCKS需要认证代理URL
 const parseSocksUrl = (socksUrl: string) => {
   const url = new URL(socksUrl);
   return {
     host: url.hostname,
     port: parseInt(url.port, 10),
-    type: url.protocol === 'socks5:' ? 5 : 4,
+    type: (url.protocol === 'socks5:' ? 5 : 4) as number,
     username: url.username || undefined,
     password: url.password || undefined,
   };
@@ -45,8 +46,7 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
     // Configuration change logic
     const configChanged =
       this.oldConfig.port !== pluginConfig.port ||
-      this.oldConfig.hostname !== pluginConfig.hostname ||
-      this.oldConfig.upstreamProxyUrl !== pluginConfig.upstreamProxyUrl;
+      this.oldConfig.hostname !== pluginConfig.hostname;
 
     // Enable status change
     if (this.oldConfig.enabled !== pluginConfig.enabled) {
@@ -67,25 +67,24 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
 
   // Custom
   // Start proxy server - SOCKS5
-  startServer(server_config: AuthProxyConfig) {
+  startServer(serverConfig: AuthProxyConfig) {
     if (this.server) {
       this.stopServer();
     }
 
-    const { port, hostname } = server_config;
+    const { port, hostname } = serverConfig;
     // 系统设置的上游代理
     const upstreamProxyUrl = config.get('options.proxy');
-    console.log('server_config', server_config);
     // 创建SOCKS代理服务器
     const socksServer = net.createServer((socket) => {
       socket.once('data', (chunk) => {
         // 检查是否是SOCKS协议
         if (chunk[0] === 0x05) {
           // SOCKS5
-          this.handleSocks5(socket, chunk, upstreamProxyUrl || null);
+          this.handleSocks5(socket, chunk, upstreamProxyUrl);
         } else if (chunk[0] === 0x04) {
           // SOCKS4
-          this.handleSocks4(socket, chunk, upstreamProxyUrl || null);
+          this.handleSocks4(socket, chunk, upstreamProxyUrl);
         } else {
           socket.end();
         }
@@ -116,11 +115,11 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
   handleSocks5(
     clientSocket: net.Socket,
     chunk: Buffer,
-    upstreamProxyUrl: string | null,
+    upstreamProxyUrl: string,
   ) {
     // 握手阶段
     const numMethods = chunk[1];
-    const methods = chunk.slice(2, 2 + numMethods);
+    const methods = chunk.subarray(2, 2 + numMethods);
 
     // 检查客户端是否支持无认证方式(0x00)
     if (methods.includes(0x00)) {
@@ -142,7 +141,7 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
   processSocks5Request(
     clientSocket: net.Socket,
     data: Buffer,
-    upstreamProxyUrl: string | null,
+    upstreamProxyUrl: string,
   ) {
     // 解析目标地址和端口
     let targetHost, targetPort;
@@ -165,12 +164,12 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
     } else if (atyp === 0x03) {
       // 域名
       const hostLen = data[4];
-      targetHost = data.slice(5, 5 + hostLen).toString();
+      targetHost = data.subarray(5, 5 + hostLen).toString();
       targetPort = data.readUInt16BE(5 + hostLen);
     } else if (atyp === 0x04) {
       // IPv6
       // 简化处理IPv6
-      const ipv6Buffer = data.slice(4, 20);
+      const ipv6Buffer = data.subarray(4, 20);
       targetHost = Array.from(new Array(8), (_, i) =>
         ipv6Buffer.readUInt16BE(i * 2).toString(16),
       ).join(':');
@@ -200,14 +199,14 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
       proxy: {
         host: socksProxy.host,
         port: socksProxy.port,
-        type: socksProxy.type,
+        type: socksProxy.type as 4 | 5,
         userId: socksProxy.username,
         password: socksProxy.password,
       },
       command: 'connect',
       destination: {
-        host: targetHost,
-        port: targetPort,
+        host: targetHost || defaultAuthProxyConfig.hostname,
+        port: targetPort || defaultAuthProxyConfig.port,
       },
     };
     // 使用 SocksClient.createConnection API
@@ -258,7 +257,7 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
   handleSocks4(
     clientSocket: net.Socket,
     chunk: Buffer,
-    upstreamProxyUrl: string | null,
+    upstreamProxyUrl: string,
   ) {
     const cmd = chunk[1]; // 命令: 0x01=CONNECT, 0x02=BIND
 
@@ -298,7 +297,7 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
       proxy: {
         host: socksProxy.host,
         port: socksProxy.port,
-        type: socksProxy.type,
+        type: socksProxy.type as 4 | 5,
         userId: socksProxy.username,
         password: socksProxy.password,
       },

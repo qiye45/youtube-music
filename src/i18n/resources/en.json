@@ -843,10 +843,10 @@
     },
     "auth-proxy-adapter": {
       "name": "Auth Proxy Adapter",
-      "description": "Enable proxy service with authentication",
+      "description": "Support for the use of authentication proxy services",
       "menu": {
-        "disable": "Disable Proxy",
-        "enable": "Enable Proxy",
+        "disable": "Disable Proxy Adapter",
+        "enable": "Enable Proxy Adapter",
         "hostname": {
           "label": "Hostname"
         },
@@ -857,11 +857,11 @@
       "prompt": {
         "hostname": {
           "title": "Proxy Hostname",
-          "label": "Enter the hostname for the proxy server:"
+          "label": "Enter the hostname for the local proxy server:"
         },
         "port": {
           "title": "Proxy Port",
-          "label": "Enter the port for the proxy server:"
+          "label": "Enter the port for the local proxy server:"
         }
       }
     }
