@@ -146,6 +146,7 @@ if (config.get('options.proxy')) {
   // 检查是否启用了 Auth-Proxy 插件
   const authProxyEnabled = config.plugins.isEnabled('auth-proxy-adapter');
   console.log('[Proxy Service] Auth-Proxy plugin enabled:', authProxyEnabled);
+  console.log('[Proxy Service] Options proxy:', config.get('options.proxy'));
   const authProxyConfig = defaultAuthProxyConfig;
   console.log('[Proxy Service] Auth-Proxy plugin config:', authProxyConfig);
   // 确定要使用的代理
@@ -163,6 +164,7 @@ if (config.get('options.proxy')) {
   }
 
   // 设置代理
+  // config.set('options.proxy', proxyToUse);
   app.commandLine.appendSwitch('proxy-server', proxyToUse);
 
   // app.commandLine.appendSwitch('proxy-server', config.get('options.proxy'));

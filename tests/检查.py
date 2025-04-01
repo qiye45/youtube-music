@@ -17,11 +17,11 @@ def proxy(proxy_url, test_url):
 
 # 定义代理
 socks5_proxy = "socks5://127.0.0.1:8081"
-socks5_proxy2 = "socks5://127.0.0.1:18080"
+socks5_proxy2 = "socks5://127.0.0.1:4545"
 http_proxy = "http://127.0.0.1:8080"
 test_urls = ["https://www.google.com", 'http://example.com']
 # 依次测试 SOCKS5 和 HTTP 代理
 for test_url in test_urls:
   # proxy(http_proxy, test_url)
-  # proxy(socks5_proxy, test_url)
+  proxy(socks5_proxy, test_url)
   proxy(socks5_proxy2, test_url)

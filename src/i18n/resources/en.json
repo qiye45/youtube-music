@@ -845,32 +845,24 @@
       "name": "Auth Proxy Adapter",
       "description": "Enable proxy service with authentication",
       "menu": {
-        "proxy-settings": "Proxy Settings",
-        "proxy-type": "Proxy Type",
-        "hostname": "Hostname",
-        "prompt-hostname": "Proxy Hostname",
-        "enter-hostname": "Enter Hostname",
-        "port": "Port",
-        "prompt-port": "Proxy Port",
-        "enter-port": "Enter Port",
-        "username": "Username",
-        "prompt-username": "Proxy Username",
-        "enter-username": "Enter Username",
-        "password": "Password",
-        "prompt-password": "Proxy Password",
-        "enter-password": "Enter Password",
-        "upstream-proxy": "Upstream Proxy",
-        "enable-upstream": "Enable Upstream Proxy",
-        "disable-upstream": "Disable Upstream Proxy",
-        "set-upstream-url": "Set Upstream Proxy URL",
-        "prompt-upstream": "Upstream Proxy URL",
-        "enter-upstream": "Enter upstream proxy URL (e.g. socks5://username:password@hostname:port)",
-        "import-from-string": "Import from proxy string",
-        "prompt-import": "Import Proxy Configuration",
-        "enter-proxy-string": "Enter proxy string (e.g. socks5://username:password@hostname:port)",
-        "export-as-string": "Copy proxy string to clipboard",
+        "disable": "Disable Proxy",
         "enable": "Enable Proxy",
-        "disable": "Disable Proxy"
+        "hostname": {
+          "label": "Hostname"
+        },
+        "port": {
+          "label": "Port"
+        }
+      },
+      "prompt": {
+        "hostname": {
+          "title": "Proxy Hostname",
+          "label": "Enter the hostname for the proxy server:"
+        },
+        "port": {
+          "title": "Proxy Port",
+          "label": "Enter the port for the proxy server:"
+        }
       }
     }
   }

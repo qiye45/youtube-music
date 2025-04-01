@@ -32,116 +32,6 @@ console.log(`Upstream HTTP Auth: ${upstreamAuth ? 'Present' : 'None'}`);
 console.log(`Upstream SOCKS Proxy: ${socksProxy.host}:${socksProxy.port}`);
 console.log(`Upstream SOCKS Auth: ${socksProxy.username ? 'Present' : 'None'}`);
 
-// HTTP代理服务器
-const httpServer = http.createServer((req, res) => {
-  console.log(`[HTTP Request] Received HTTP request for: ${req.url}`);
-
-  const parsedUrl = new URL(req.url);
-  const requestOptions = {
-    hostname: upstreamUrl.hostname,
-    port: upstreamUrl.port,
-    path: req.url,
-    method: req.method,
-    headers: {
-      ...req.headers,
-      Host: parsedUrl.host
-    }
-  };
-
-  if (upstreamAuth) {
-    requestOptions.headers['Proxy-Authorization'] = `Basic ${upstreamAuth}`;
-  }
-
-  const proxyReq = http.request(requestOptions, (proxyRes) => {
-    res.writeHead(proxyRes.statusCode, proxyRes.headers);
-    proxyRes.pipe(res);
-  });
-
-  proxyReq.on('error', (err) => {
-    console.error(`[HTTP Error] ${err.message}`);
-    res.writeHead(502, { 'Content-Type': 'text/plain' });
-    res.end(`Error: ${err.message}`);
-  });
-
-  req.pipe(proxyReq);
-});
-
-// 处理 CONNECT 请求 (HTTPS)
-httpServer.on('connect', (req, clientSocket, head) => {
-  console.log(`[CONNECT] Received CONNECT request for: ${req.url}`);
-
-  // 向上游HTTP代理发起 CONNECT 请求
-  const proxyReqOptions = {
-    method: 'CONNECT',
-    path: req.url,
-    host: upstreamUrl.hostname,
-    port: upstreamUrl.port,
-    headers: {
-      'Host': req.url,
-      'User-Agent': req.headers['user-agent'] || 'Node-Proxy-Agent'
-    },
-    agent: false
-  };
-
-  if (upstreamAuth) {
-    proxyReqOptions.headers['Proxy-Authorization'] = `Basic ${upstreamAuth}`;
-    console.log('[CONNECT] Added Proxy-Authorization header.');
-  }
-
-  console.log(`[CONNECT] Sending request to upstream HTTP proxy for: ${req.url}`);
-  const proxyReq = http.request(proxyReqOptions);
-
-  proxyReq.on('connect', (proxyRes, proxySocket) => {
-    console.log(`[CONNECT] Upstream response: ${proxyRes.statusCode}`);
-    if (proxyRes.statusCode === 200) {
-      console.log(`[CONNECT] Connection established via HTTP proxy to ${req.url}`);
-      clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
-
-      proxySocket.write(head);
-      proxySocket.pipe(clientSocket);
-      clientSocket.pipe(proxySocket);
-
-      proxySocket.on('error', (err) => {
-        console.error('[CONNECT] Proxy socket error:', err.message);
-        if (clientSocket.writable) clientSocket.end();
-      });
-      clientSocket.on('error', (err) => {
-        console.error('[CONNECT] Client socket error:', err.message);
-        if (proxySocket.writable) proxySocket.end();
-      });
-      proxySocket.on('end', () => {
-        if (clientSocket.writable) clientSocket.end();
-      });
-      clientSocket.on('end', () => {
-        if (proxySocket.writable) proxySocket.end();
-      });
-    } else {
-      console.error(`[CONNECT] Failed: Upstream returned ${proxyRes.statusCode}`);
-      clientSocket.write(`HTTP/1.1 ${proxyRes.statusCode} ${proxyRes.statusMessage}\r\n`);
-      Object.keys(proxyRes.headers).forEach(key => {
-        clientSocket.write(`${key}: ${proxyRes.headers[key]}\r\n`);
-      });
-      clientSocket.write('\r\n');
-      clientSocket.end();
-      proxySocket.end();
-    }
-  });
-
-  proxyReq.on('error', (err) => {
-    console.error(`[CONNECT] Error connecting to upstream HTTP proxy:`, err.message);
-    if (clientSocket.writable) {
-      clientSocket.write(`HTTP/1.1 502 Bad Gateway\r\nError: ${err.message}\r\n\r\n`);
-    }
-    clientSocket.end();
-  });
-
-  proxyReq.end();
-});
-
-httpServer.listen(LOCAL_PORT, '127.0.0.1', () => {
-  console.log(`HTTP proxy server listening on http://127.0.0.1:${LOCAL_PORT}`);
-  console.log(`Forwarding HTTP/HTTPS traffic through: ${UPSTREAM_PROXY}`);
-});
 
 // SOCKS代理服务器
 const socksServer = net.createServer((socket) => {
@@ -350,6 +240,117 @@ socksServer.on('error', (err) => {
   console.error('[SOCKS Server Error]', err.message);
 });
 
+
+// HTTP代理服务器
+const httpServer = http.createServer((req, res) => {
+  console.log(`[HTTP Request] Received HTTP request for: ${req.url}`);
+
+  const parsedUrl = new URL(req.url);
+  const requestOptions = {
+    hostname: upstreamUrl.hostname,
+    port: upstreamUrl.port,
+    path: req.url,
+    method: req.method,
+    headers: {
+      ...req.headers,
+      Host: parsedUrl.host
+    }
+  };
+
+  if (upstreamAuth) {
+    requestOptions.headers['Proxy-Authorization'] = `Basic ${upstreamAuth}`;
+  }
+
+  const proxyReq = http.request(requestOptions, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error(`[HTTP Error] ${err.message}`);
+    res.writeHead(502, { 'Content-Type': 'text/plain' });
+    res.end(`Error: ${err.message}`);
+  });
+
+  req.pipe(proxyReq);
+});
+
+// 处理 CONNECT 请求 (HTTPS)
+httpServer.on('connect', (req, clientSocket, head) => {
+  console.log(`[CONNECT] Received CONNECT request for: ${req.url}`);
+
+  // 向上游HTTP代理发起 CONNECT 请求
+  const proxyReqOptions = {
+    method: 'CONNECT',
+    path: req.url,
+    host: upstreamUrl.hostname,
+    port: upstreamUrl.port,
+    headers: {
+      'Host': req.url,
+      'User-Agent': req.headers['user-agent'] || 'Node-Proxy-Agent'
+    },
+    agent: false
+  };
+
+  if (upstreamAuth) {
+    proxyReqOptions.headers['Proxy-Authorization'] = `Basic ${upstreamAuth}`;
+    console.log('[CONNECT] Added Proxy-Authorization header.');
+  }
+
+  console.log(`[CONNECT] Sending request to upstream HTTP proxy for: ${req.url}`);
+  const proxyReq = http.request(proxyReqOptions);
+
+  proxyReq.on('connect', (proxyRes, proxySocket) => {
+    console.log(`[CONNECT] Upstream response: ${proxyRes.statusCode}`);
+    if (proxyRes.statusCode === 200) {
+      console.log(`[CONNECT] Connection established via HTTP proxy to ${req.url}`);
+      clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+
+      proxySocket.write(head);
+      proxySocket.pipe(clientSocket);
+      clientSocket.pipe(proxySocket);
+
+      proxySocket.on('error', (err) => {
+        console.error('[CONNECT] Proxy socket error:', err.message);
+        if (clientSocket.writable) clientSocket.end();
+      });
+      clientSocket.on('error', (err) => {
+        console.error('[CONNECT] Client socket error:', err.message);
+        if (proxySocket.writable) proxySocket.end();
+      });
+      proxySocket.on('end', () => {
+        if (clientSocket.writable) clientSocket.end();
+      });
+      clientSocket.on('end', () => {
+        if (proxySocket.writable) proxySocket.end();
+      });
+    } else {
+      console.error(`[CONNECT] Failed: Upstream returned ${proxyRes.statusCode}`);
+      clientSocket.write(`HTTP/1.1 ${proxyRes.statusCode} ${proxyRes.statusMessage}\r\n`);
+      Object.keys(proxyRes.headers).forEach(key => {
+        clientSocket.write(`${key}: ${proxyRes.headers[key]}\r\n`);
+      });
+      clientSocket.write('\r\n');
+      clientSocket.end();
+      proxySocket.end();
+    }
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error(`[CONNECT] Error connecting to upstream HTTP proxy:`, err.message);
+    if (clientSocket.writable) {
+      clientSocket.write(`HTTP/1.1 502 Bad Gateway\r\nError: ${err.message}\r\n\r\n`);
+    }
+    clientSocket.end();
+  });
+
+  proxyReq.end();
+});
+
+httpServer.listen(LOCAL_PORT, '127.0.0.1', () => {
+  console.log(`HTTP proxy server listening on http://127.0.0.1:${LOCAL_PORT}`);
+  console.log(`Forwarding HTTP/HTTPS traffic through: ${UPSTREAM_PROXY}`);
+});
 httpServer.on('error', (err) => {
   console.error('[HTTP Server Error]', err.message);
 });

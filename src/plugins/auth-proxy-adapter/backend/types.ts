@@ -1,21 +1,13 @@
 import net from 'net';
-import { app } from 'electron';
-import { SocksClient } from 'socks';
-import { createBackend } from '@/utils';
-import config from '@/config';
-import { getProxyUrl } from '../config';
-import type { SocksClientOptions } from 'socks';
+
 import type { AuthProxyConfig } from '../config';
 import type { Server } from 'http';
 
-
-export type BackendType {
+export type BackendType = {
   server?: Server | net.Server;
   oldConfig?: AuthProxyConfig;
-  startServer: (config: AuthProxyConfig) => void;
+  startServer: (server_config: AuthProxyConfig) => void;
   stopServer: () => void;
-  setSystemProxy: (config: AuthProxyConfig) => void;
-  clearSystemProxy: () => void;
   proxyString?: string;
   _savedProxy?: string;
   handleSocks5: (
@@ -33,4 +25,4 @@ export type BackendType {
     data: Buffer,
     upstreamProxyUrl: string | null,
   ) => void;
-}
+};

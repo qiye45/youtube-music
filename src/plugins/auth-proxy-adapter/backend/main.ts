@@ -1,44 +1,37 @@
 import net from 'net';
 
-import {app} from 'electron';
-import {SocksClient} from 'socks';
+import * as console from 'node:console';
 
-import {createBackend} from '@/utils';
+import { SocksClient, SocksClientOptions } from 'socks';
+
+import is from 'electron-is';
+
+import { createBackend, LoggerPrefix } from '@/utils';
+
+import { BackendType } from './types';
+
 import config from '@/config';
 
-import {getProxyUrl} from '../config';
-
-import type {SocksClientOptions} from 'socks';
-
-import type {AuthProxyConfig} from '../config';
-import type {Server} from 'http';
-import type {BackendContext} from '@/types/contexts';
-import {BackendType} from "./types";
-
+import type { AuthProxyConfig } from '../config';
+import type { BackendContext } from '@/types/contexts';
 
 // 解析上游SOCKS代理URL（支持认证）
 const parseSocksUrl = (socksUrl: string) => {
-  try {
-    const url = new URL(socksUrl);
-    return {
-      host: url.hostname,
-      port: parseInt(url.port, 10),
-      type: url.protocol === 'socks5:' ? 5 : 4,
-      username: url.username || undefined,
-      password: url.password || undefined,
-    };
-  } catch (error) {
-    console.error('[Proxy Service] Failed to parse SOCKS URL:', error);
-    return null;
-  }
+  const url = new URL(socksUrl);
+  return {
+    host: url.hostname,
+    port: parseInt(url.port, 10),
+    type: url.protocol === 'socks5:' ? 5 : 4,
+    username: url.username || undefined,
+    password: url.password || undefined,
+  };
 };
 
 export const backend = createBackend<BackendType, AuthProxyConfig>({
   async start(ctx: BackendContext<AuthProxyConfig>) {
     const pluginConfig = await ctx.getConfig();
+    console.log('[Proxy Service] Starting with config:', pluginConfig);
     this.startServer(pluginConfig);
-
-
   },
   stop() {
     this.stopServer();
@@ -73,36 +66,27 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
   },
 
   // Custom
-  // Start proxy server - SOCKS
-  startServer(config) {
+  // Start proxy server - SOCKS5
+  startServer(server_config: AuthProxyConfig) {
     if (this.server) {
       this.stopServer();
     }
 
-    const {port, hostname, upstreamProxyUrl} = config;
-
+    const { port, hostname } = server_config;
+    // 系统设置的上游代理
+    const upstreamProxyUrl = config.get('options.proxy');
+    console.log('server_config', server_config);
     // 创建SOCKS代理服务器
     const socksServer = net.createServer((socket) => {
-      console.log('[SOCKS] New connection');
-
       socket.once('data', (chunk) => {
         // 检查是否是SOCKS协议
         if (chunk[0] === 0x05) {
           // SOCKS5
-          console.log('[SOCKS] SOCKS5 handshake received');
-          this.handleSocks5(
-            socket,
-            chunk
-          );
+          this.handleSocks5(socket, chunk, upstreamProxyUrl || null);
         } else if (chunk[0] === 0x04) {
           // SOCKS4
-          console.log('[SOCKS] SOCKS4 request received');
-          this.handleSocks4(
-            socket,
-            chunk
-          );
+          this.handleSocks4(socket, chunk, upstreamProxyUrl || null);
         } else {
-          console.log('[SOCKS] Unknown protocol:', chunk[0]);
           socket.end();
         }
       });
@@ -121,10 +105,7 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
     socksServer.listen(port, hostname, () => {
       console.log('===========================================');
       console.log(`[Proxy Service] SOCKS proxy enabled at ${hostname}:${port}`);
-      console.log('[Proxy Service] Authentication disabled');
-      console.log(
-        `[Proxy Service] Using upstream proxy: ${upstreamProxyUrl}`,
-      );
+      console.log(`[Proxy Service] Using upstream proxy: ${upstreamProxyUrl}`);
       console.log('===========================================');
     });
 
@@ -195,118 +176,82 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
       ).join(':');
       targetPort = data.readUInt16BE(20);
     }
-
-    console.log(`[SOCKS5] Request to connect to ${targetHost}:${targetPort}`);
-
-    if (upstreamProxyUrl) {
-      // 使用上游代理
-      const socksProxy = parseSocksUrl(upstreamProxyUrl);
-
-      if (!socksProxy) {
-        // 解析代理URL失败
-        clientSocket.write(
-          Buffer.from([0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0]),
-        );
-        clientSocket.end();
-        return;
-      }
-
-      // 使用 SocksClient API
-      const options: SocksClientOptions = {
-        proxy: {
-          host: socksProxy.host,
-          port: socksProxy.port,
-          type: socksProxy.type as 4 | 5,
-          userId: socksProxy.username || undefined,
-          password: socksProxy.password || undefined,
-        },
-        command: 'connect',
-        destination: {
-          host: targetHost || '',
-          port: targetPort || 0,
-        },
-      };
-
-      // 使用 SocksClient.createConnection API
-      SocksClient.createConnection(options)
-        .then((info) => {
-          const {socket: proxySocket} = info;
-
-          // 连接成功，向客户端发送成功响应
-          const responseBuffer = Buffer.from([
-            0x05, // VER: SOCKS5
-            0x00, // REP: 成功
-            0x00, // RSV: 保留字段
-            0x01, // ATYP: IPv4
-            0,
-            0,
-            0,
-            0, // BND.ADDR: 0.0.0.0 (绑定的地址，通常不重要)
-            0,
-            0, // BND.PORT: 0 (绑定的端口，通常不重要)
-          ]);
-          clientSocket.write(responseBuffer);
-
-          // 建立双向数据流
-          proxySocket.pipe(clientSocket);
-          clientSocket.pipe(proxySocket);
-
-          proxySocket.on('error', (error) => {
-            console.error('[SOCKS5] Proxy socket error:', error);
-            if (clientSocket.writable) clientSocket.end();
-          });
-
-          clientSocket.on('error', (error) => {
-            console.error('[SOCKS5] Client socket error:', error);
-            if (proxySocket.writable) proxySocket.end();
-          });
-        })
-        .catch((error) => {
-          console.error('[SOCKS5] Connection error:', error);
-          // 向客户端返回失败
-          clientSocket.write(
-            Buffer.from([0x05, 0x05, 0x00, 0x01, 0, 0, 0, 0, 0, 0]),
-          );
-          clientSocket.end();
-        });
-    } else {
-      // 直接连接目标（不使用上游代理）
-      const targetSocket = net.createConnection(
-        {
-          host: targetHost || '',
-          port: targetPort || 0,
-        },
-        () => {
-          // 连接成功，向客户端发送成功响应
-          const responseBuffer = Buffer.from([
-            0x05, // VER: SOCKS5
-            0x00, // REP: 成功
-            0x00, // RSV: 保留字段
-            0x01, // ATYP: IPv4
-            0,
-            0,
-            0,
-            0, // BND.ADDR: 0.0.0.0
-            0,
-            0, // BND.PORT: 0
-          ]);
-          clientSocket.write(responseBuffer);
-
-          // 建立双向数据流
-          targetSocket.pipe(clientSocket);
-          clientSocket.pipe(targetSocket);
-        },
+    if (is.dev()) {
+      console.debug(
+        LoggerPrefix,
+        `[SOCKS5] Request to connect to ${targetHost}:${targetPort}`,
       );
+    }
 
-      targetSocket.on('error', (err: Error) => {
-        console.error('[SOCKS5] Target connection error:', err.message);
+    // 使用上游代理
+    const socksProxy = parseSocksUrl(upstreamProxyUrl);
+
+    if (!socksProxy) {
+      // 解析代理URL失败
+      clientSocket.write(
+        Buffer.from([0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0]),
+      );
+      clientSocket.end();
+      return;
+    }
+
+    // 使用 SocksClient API
+    const options: SocksClientOptions = {
+      proxy: {
+        host: socksProxy.host,
+        port: socksProxy.port,
+        type: socksProxy.type,
+        userId: socksProxy.username,
+        password: socksProxy.password,
+      },
+      command: 'connect',
+      destination: {
+        host: targetHost,
+        port: targetPort,
+      },
+    };
+    // 使用 SocksClient.createConnection API
+    SocksClient.createConnection(options)
+      .then((info) => {
+        const { socket: proxySocket } = info;
+
+        // 连接成功，向客户端发送成功响应
+        const responseBuffer = Buffer.from([
+          0x05, // VER: SOCKS5
+          0x00, // REP: 成功
+          0x00, // RSV: 保留字段
+          0x01, // ATYP: IPv4
+          0,
+          0,
+          0,
+          0, // BND.ADDR: 0.0.0.0 (绑定的地址，通常不重要)
+          0,
+          0, // BND.PORT: 0 (绑定的端口，通常不重要)
+        ]);
+        clientSocket.write(responseBuffer);
+
+        // 建立双向数据流
+        proxySocket.pipe(clientSocket);
+        clientSocket.pipe(proxySocket);
+
+        proxySocket.on('error', (error) => {
+          console.error('[SOCKS5] Proxy socket error:', error);
+          if (clientSocket.writable) clientSocket.end();
+        });
+
+        clientSocket.on('error', (error) => {
+          console.error('[SOCKS5] Client socket error:', error);
+          if (proxySocket.writable) proxySocket.end();
+        });
+      })
+      .catch((error) => {
+        console.error('[SOCKS5] Connection error:', error);
         // 向客户端返回失败
         clientSocket.write(
           Buffer.from([0x05, 0x05, 0x00, 0x01, 0, 0, 0, 0, 0, 0]),
         );
         clientSocket.end();
       });
-    }
   },
 
   // 处理SOCKS4请求
@@ -338,85 +283,59 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
 
     console.log(`[SOCKS4] Request to connect to ${ip}:${port}`);
 
-    if (upstreamProxyUrl) {
-      // 使用上游代理
-      const socksProxy = parseSocksUrl(upstreamProxyUrl);
+    // 使用上游代理
+    const socksProxy = parseSocksUrl(upstreamProxyUrl);
 
-      if (!socksProxy) {
-        // 解析代理URL失败
-        clientSocket.write(Buffer.from([0x00, 0x5b, 0, 0, 0, 0, 0, 0]));
-        clientSocket.end();
-        return;
-      }
+    if (!socksProxy) {
+      // 解析代理URL失败
+      clientSocket.write(Buffer.from([0x00, 0x5b, 0, 0, 0, 0, 0, 0]));
+      clientSocket.end();
+      return;
+    }
 
-      // 使用 SocksClient API
-      const options: SocksClientOptions = {
-        proxy: {
-          host: socksProxy.host,
-          port: socksProxy.port,
-          type: socksProxy.type as 4 | 5,
-          userId: socksProxy.username || undefined,
-          password: socksProxy.password || undefined,
-        },
-        command: 'connect',
-        destination: {
-          host: ip,
-          port: port,
-        },
-      };
+    // 使用 SocksClient API
+    const options: SocksClientOptions = {
+      proxy: {
+        host: socksProxy.host,
+        port: socksProxy.port,
+        type: socksProxy.type,
+        userId: socksProxy.username,
+        password: socksProxy.password,
+      },
+      command: 'connect',
+      destination: {
+        host: ip,
+        port: port,
+      },
+    };
 
-      // 使用 SocksClient.createConnection API
-      SocksClient.createConnection(options)
-        .then((info) => {
-          const {socket: proxySocket} = info;
+    SocksClient.createConnection(options)
+      .then((info) => {
+        const { socket: proxySocket } = info;
 
-          // 连接成功，向客户端发送成功响应
-          clientSocket.write(Buffer.from([0x00, 0x5a, 0, 0, 0, 0, 0, 0]));
+        // 连接成功，向客户端发送成功响应
+        clientSocket.write(Buffer.from([0x00, 0x5a, 0, 0, 0, 0, 0, 0]));
 
-          // 建立双向数据流
-          proxySocket.pipe(clientSocket);
-          clientSocket.pipe(proxySocket);
+        // 建立双向数据流
+        proxySocket.pipe(clientSocket);
+        clientSocket.pipe(proxySocket);
 
-          proxySocket.on('error', (error) => {
-            console.error('[SOCKS4] Proxy socket error:', error);
-            if (clientSocket.writable) clientSocket.end();
-          });
-
-          clientSocket.on('error', (error) => {
-            console.error('[SOCKS4] Client socket error:', error);
-            if (proxySocket.writable) proxySocket.end();
-          });
-        })
-        .catch((error) => {
-          console.error('[SOCKS4] Connection error:', error);
-          // 向客户端返回失败
-          clientSocket.write(Buffer.from([0x00, 0x5b, 0, 0, 0, 0, 0, 0]));
-          clientSocket.end();
+        proxySocket.on('error', (error) => {
+          console.error('[SOCKS4] Proxy socket error:', error);
+          if (clientSocket.writable) clientSocket.end();
         });
-    } else {
-      // 直接连接目标（不使用上游代理）
-      const targetSocket = net.createConnection(
-        {
-          host: ip,
-          port: port,
-        },
-        () => {
-          // 连接成功，向客户端发送成功响应
-          clientSocket.write(Buffer.from([0x00, 0x5a, 0, 0, 0, 0, 0, 0]));
 
-          // 建立双向数据流
-          targetSocket.pipe(clientSocket);
-          clientSocket.pipe(targetSocket);
-        },
-      );
-
-      targetSocket.on('error', (err: Error) => {
-        console.error('[SOCKS4] Target connection error:', err.message);
+        clientSocket.on('error', (error) => {
+          console.error('[SOCKS4] Client socket error:', error);
+          if (proxySocket.writable) proxySocket.end();
+        });
+      })
+      .catch((error) => {
+        console.error('[SOCKS4] Connection error:', error);
         // 向客户端返回失败
         clientSocket.write(Buffer.from([0x00, 0x5b, 0, 0, 0, 0, 0, 0]));
         clientSocket.end();
       });
-    }
   },
 
   // Stop proxy server
@@ -427,16 +346,4 @@ export const backend = createBackend<BackendType, AuthProxyConfig>({
     }
     console.log('[Proxy Service] Proxy disabled');
   },
-  // 设置代理
-  set_proxy() {
-    window.ipcRenderer.send("set_proxy", {
-      http_proxy: this.setting_http_proxy
-    });
-  },
-
-// 取消代理
-  remove_proxy() {
-    window.ipcRenderer.send("remove_proxy");
-  },
-
 });
